@@ -10,7 +10,7 @@ import util
 
 
 def check_coordinate_system(path):
-    info = (gdal.Info(str(path), options=['-json']))
+    info = gdal.Info(str(path), options=['-json'])
     info = info['coordinateSystem']['wkt']
     return info.split('ID')[-1].split(',')[1].replace(']', '')
 

@@ -13,11 +13,37 @@ from scipy import stats
 
 import util
 import newFunctions as nf
+from asf_tools.hand.prepare import prepare_hand_for_raster
+
+"""Creates a flood depth map from a water extent map. 
+
+Create a flood depth map from a single Hyp3-generated surface water extent map and
+a HAND image. The HAND image must completely cover the water extent map. 
+
+Known perennial Global Surface water data are produced under the Copernicus Programme, 
+and are pulled to ensure this information is accounted for in the Flood Depth Map calculation.
+This is added to the SAR-derived surface water detection maps to generate the 
+final Flood Depth product. 
+
+Flood depth maps are estimated using one of the approaches: 
+*Iterative: Basin hopping optimization method to match flooded areas to flood depth 
+estimates given by the HAND layer. This is the most accurate method, but also the 
+most time-intensive. 
+*Normalized Median Absolute Deviation (nmad): (Default) Uses a median operator to estimate
+the variation to increase robustness in the presence of liars. 
+*Logstat: Calculates the mean and standard deviation of HAND heights in the logarithmic 
+domain to improve robustness for very non-Gaussian data distributions. 
+*Numpy: Calculates statistics in a linear scale. Least robust to outliers and non-Gaussian
+distributions. 
+
+"""
+
+
+
 
 ######################################################
 # MESSILY SET UP INPUTS (WILL USE ARGPARSE)
 # DEFINE PARAMETERS
-version = "0.1.8"
 water_classes = [1, 2, 3, 4, 5]  # 1 has to be a water class, 0 is no water Others are optional.
 pattern = "*_water_mask_combined.tiff"  # "filter_*_amp_Classified.tif"
 show_plots = True  # turn this off for debugging with IPDB
@@ -27,19 +53,24 @@ iterative_bounds = [0, 15]  # only used for iterative
 output_prefix = ''  # Output file is created in the same folder as flood extent. A prefix can be added to the filename.
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
-tiff_dir = '/Users/jrsmale/GitHub/flood-map/data/'
+tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
 tiff_path = tiff_dir + 'flooddaysBG.tif'
-work_path = Path(tiff_path).parent
-hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
-
+#hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
+hand_dem = ''
 filename = Path(tiff_path).name
 filenoext = Path(tiff_path).stem  # given vrt we want to force geotif output with tif extension
 tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}.tif"
 #############################################################
-# check coordiante systems
-epsg_we = util.check_coordinate_system(tiff_path)
-epsg_hand = util.check_coordinate_system(hand_dem)
+# check coordinate systems
+epsg_we = nf.check_coordinate_system(tiff_path)
+
+if hand_dem is None:
+    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
+    log.info(f'Extracting HAND data to: {hand_dem}')
+    prepare_hand_for_raster(hand_dem, vh_raster)
+
+epsg_hand = nf.check_coordinate_system(hand_dem)
 
 # Reproject
 nf.reproject_tifs(epsg_we, epsg_hand, tiff_dir, filename, reprojected_flood_mask)

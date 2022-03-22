@@ -170,8 +170,8 @@ def retrieve_vrt(west, east, south, north):
 
     if (west < 0 and north < 0):
         urllib.request.urlretrieve(
-            f"{url_base}{lon}{lon_dir}_{lat}{lat_dir}{url_end}",
-            f"{cwd}/S_WATER/surface_water_{lon}{lon_dir}_{lat}{lat_dir}.tif")
+            f"https://storage.googleapis.com/global-surface-water/downloads2019v2/occurrence/occurrence_{lon}W_{lat}Sv1_1_2019.tif",
+            f"{cwd}/S_WATER/surface_water_{lon}W_{lat}S.tif")
         if (np.floor(west / 10) != np.floor(east / 10)):
             urllib.request.urlretrieve(
                 f"https://storage.googleapis.com/global-surface-water/downloads2019v2/occurrence/occurrence_{lon - 10}W_{lat}Sv1_1_2019.tif",
