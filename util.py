@@ -165,6 +165,7 @@ def get_wesn(filename, t_srs=None):
 
 
 def retrieve_vrt(west, east, south, north):
+    cwd = Path.cwd()
     lon = int(abs(np.floor(west/10) * 10))
     lat = int(abs(np.ceil(north/10) * 10))
 
