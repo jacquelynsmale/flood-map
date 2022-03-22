@@ -13,14 +13,10 @@ from scipy import stats
 import util
 
 log = logging.getLogger(__name__)
-
-def estimate_flood_depth():
-    #check coordiante systems
-    epsg_we = util.check_coordinate_system(water_extent_tif)
-    epsg_hand = util.check_coordinate_system(hand_dem)
-
-
-
+ß
+def estimate_flood_depth(hand_dem, water_extent_tif, estimator='nmad', water_classes = [1, 2, 3, 4, 5], water_level_sigma=3, known_water_threshold=30,
+                         iterative_bounds=[0,15]):
+    return flood_depth
 
 
 def main():
@@ -47,6 +43,8 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='Turn on verbose logging')
     args = parser.parse_args()
 
+    estimate_flood_depth(hand_raster, water_extent_tif, estimator, water_level_sigma, known_water_threshold,
+                         iterative_bounds)
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
