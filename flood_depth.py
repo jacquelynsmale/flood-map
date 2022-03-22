@@ -55,8 +55,8 @@ known_water_threshold = 30  # Threshold for extracting the known water area in p
 
 tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
 tiff_path = tiff_dir + 'flooddaysBG.tif'
-#hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
-hand_dem = ''
+hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
+
 filename = Path(tiff_path).name
 filenoext = Path(tiff_path).stem  # given vrt we want to force geotif output with tif extension
 tiff_dir = Path(tiff_dir)
@@ -64,12 +64,6 @@ reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}.tif"
 #############################################################
 # check coordinate systems
 epsg_we = nf.check_coordinate_system(tiff_path)
-
-if hand_dem is None:
-    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
-    log.info(f'Extracting HAND data to: {hand_dem}')
-    prepare_hand_for_raster(hand_dem, vh_raster)
-
 epsg_hand = nf.check_coordinate_system(hand_dem)
 
 # Reproject
