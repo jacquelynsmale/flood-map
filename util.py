@@ -152,9 +152,11 @@ def get_wesn(info):
     east, north = info['cornerCoordinates']['upperRight']
     return west, south, east, north
 
-def retrieve_vrt(west, east, south, north, cwd):
-    lon = int(abs(np.floor(west/10) * 10))
-    lat = int(abs(np.ceil(north/10) * 10))
+def retrieve_vrt(west, south, east, north, cwd):
+    lon = np.floor(west / 10)
+    lon = int(abs(lon * 10))
+    lat = np.ceil(north / 10)
+    lat = int(abs(lat * 10))
 
     if (west < 0 and north < 0):
         urllib.request.urlretrieve(
@@ -250,7 +252,7 @@ def get_waterbody(filename, ths):
     if not sw_path.exists():
         sw_path.mkdir()
 
-    retrieve_vrt(west, east, south, north, cwd)
+    retrieve_vrt(west, south, east, north, cwd)
     gdal.BuildVRT(vrt_file, glob.glob(str(product_wpath)))
 
     # Clipping/Resampling Surface Water Map for AOI
