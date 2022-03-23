@@ -5,8 +5,9 @@ import numpy as np
 from osgeo import gdal
 from scipy import ndimage
 from scipy import stats
-
+from osgeo import osr
 import util
+from pathlib import Path
 
 
 def check_coordinate_system(info):
@@ -14,14 +15,15 @@ def check_coordinate_system(info):
     return info.split('ID')[-1].split(',')[1].replace(']', '')
 
 
-def reproject_tifs(epsg1, epsg2, tiff_dir, filename1, reprojected):
-    if epsg1 != epsg2:
-        gdal.Warp(reprojected, filename1, outputBoundsSRS=epsg2,
+def reproject_flood_mask(epsg, epsg_hand, filename, reprojected_filename, tiff_dir):
+    if epsg != epsg_hand:
+        gdal.Warp(reprojected_filename, filename, dstSRS=epsg_hand,
                   resampleAlg='cubicspline', format="GTiff")
     else:
-        if reprojected.exists():
-            reprojected.unlink()
-        symlink(tiff_dir / filename1, reprojected)
+        print('HAND and Flood Mask have the same projection. ')
+        if reprojected_filename.exists():
+            reprojected_filename.unlink()
+        symlink(tiff_dir / filename, reprojected_filename)
 
 
 def initial_mask_generation(change_map, known_water_mask, water_classes=[0, 1, 2, 3, 4, 5]):
@@ -48,6 +50,7 @@ def logstat(data, func=np.nanstd):
 def estimate_flood_depth(hand_array, flood_mask, estimator='nmad', water_level_sigma=3, iterative_bounds=[0, 15]):
     flood_mask_labels, num_labels = ndimage.label(flood_mask)
     object_slices = ndimage.find_objects(flood_mask_labels)
+    print(f'Detected {num_labels} water bodies...')
 
     flood_depth = np.zeros(flood_mask.shape)
 
@@ -89,3 +92,24 @@ def estimate_flood_depth(hand_array, flood_mask, estimator='nmad', water_level_s
 
     flood_depth[flood_depth < 0] = 0
     return flood_depth
+
+
+def get_waterbody(input_info, ths=30):
+    sw_path = Path.cwd() / f"S_WATER"
+    epsg_code = 'EPSG:' + check_coordinate_system(input_info)
+
+    west, south = input_info['cornerCoordinates']['lowerLeft']
+    east, north = input_info['cornerCoordinates']['upperRight']
+    width, height = input_info['size']
+
+    water_extent_vrt = str(sw_path / 'water_extent.vrt')  # All Perennial Flood Data
+    wimage_file = str(sw_path / 'surface_water_map_clip.tif')
+
+    print(f"Known waterbodies written to: {wimage_file}")
+
+    gdal.Warp(wimage_file, water_extent_vrt, dstSRS=epsg_code,
+              outputBounds=[west, south, east, north],
+              width=width, height=height, resampleAlg='lanczos', format='GTiff')
+
+    wmask = util.readData(wimage_file) > ths  # higher than 30% possibility (present water)
+    return wmask
