@@ -172,7 +172,7 @@ def retrieve_vrt(west, east, south, north):
 def get_wesn(info):
     west, south = info['cornerCoordinates']['lowerLeft']
     east, north = info['cornerCoordinates']['upperRight']
-    return west, east, south, north
+    return west, south, east, north
 
 def retrieve_vrt(west, east, south, north, cwd):
 >>>>>>> 157d240 (Mismatched raster sizes)

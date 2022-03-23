@@ -50,10 +50,14 @@ estimator = "nmad"  # iterative, numpy, nmad or logstat
 iterative_bounds = [0, 15]  # only used for iterative
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
+<<<<<<< HEAD
 tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
 <<<<<<< HEAD
 tiff_path = tiff_dir + 'flooddaysBG.tif'
 =======
+=======
+tiff_dir = '/home/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
+>>>>>>> e51fc07 (Re-ordered coordinates. Added a plot for a sanity check')
 tiff_path = tiff_dir + 'flooddays.tiff'
 >>>>>>> 157d240 (Mismatched raster sizes)
 hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
@@ -89,12 +93,12 @@ info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
 epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
 width, height = info['size']
-rfm_wesn = util.get_wesn(info)
+west, south, east, north = util.get_wesn(info)
 
 # Clip HAND to the same size as the reprojected_flood_mask
 print(f'Clipping HAND to be {width} by {height} pixels.')
 hand_dem_bb = util.bounding_box(hand_dem)
-gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=rfm_wesn, width=width, height=height,
+gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south, east, north], width=width, height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
 hand_array = util.readData(f"{tiff_dir}/clip_HAND.tif")
@@ -115,4 +119,17 @@ flood_depth = nf.estimate_flood_depth(hand_array, flood_mask, estimator=estimato
                                       water_level_sigma=water_level_sigma,
                                       iterative_bounds=iterative_bounds)
 
+m = np.nanmean(flood_depth)
+s = np.nanstd(flood_depth)
+clim_min = max([m-2*s, 0])
+clim_max = min([m+2*s, 5])
+pl.matshow(flood_depth)
+pl.colorbar()
+pl.clim([clim_min, clim_max])
+pl.title('Estimated Flood Depth')
+pl.show()
+
+
+flood_mask[known_water_mask] = 0
+flood_depth[np.bitwise_not(flood_mask)] = 0
 util.writeTiff(flood_depth, gT, outfile, srs_proj4=epsg_we, nodata=0, options = ["TILED=YES","COMPRESS=LZW","INTERLEAVE=BAND","BIGTIFF=YES"])
