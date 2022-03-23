@@ -83,8 +83,7 @@ width, height = info['size']
 west, south, east, north = util.get_wesn(info)
 
 # Clip HAND to the same size as the reprojected_flood_mask
-print(f'Clipping HAND to be {width} by {height} pixels.')
-hand_dem_bb = util.bounding_box(hand_dem)
+print(f'Clipping HAND to {width} by {height} pixels.')
 gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south, east, north], width=width, height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
