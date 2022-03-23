@@ -10,6 +10,7 @@ from osgeo import osr
 from osgeo.gdal_array import LoadFile
 from scipy import optimize
 
+
 def readData(filename, ndtype=np.float64):
     '''
     z=readData('/path/to/file')
@@ -146,6 +147,7 @@ def bounding_box(filename, t_srs=None):
     return tuple(pts_tsrs)
 
 
+<<<<<<< HEAD
 def get_wesn(filename, t_srs=None):
     bb = bounding_box(filename, t_srs=t_srs)
     w = np.inf
@@ -166,6 +168,14 @@ def get_wesn(filename, t_srs=None):
 
 def retrieve_vrt(west, east, south, north):
     cwd = Path.cwd()
+=======
+def get_wesn(info):
+    west, south = info['cornerCoordinates']['lowerLeft']
+    east, north = info['cornerCoordinates']['upperRight']
+    return west, east, south, north
+
+def retrieve_vrt(west, east, south, north, cwd):
+>>>>>>> 157d240 (Mismatched raster sizes)
     lon = int(abs(np.floor(west/10) * 10))
     lat = int(abs(np.ceil(north/10) * 10))
 
@@ -248,7 +258,7 @@ def get_waterbody(filename, ths):
     sw_path = cwd / f"S_WATER"
     product_wpath = Path(cwd) / f"S_WATER/surface_water*.tif"
     vrt_file = f"{product_wpath.parent}/surface_water_map.vrt"
-    wimage_file = f"{product_wpath.parent}/surface_water_map_clip_PY.tif"
+    wimage_file = f"{product_wpath.parent}/surface_water_map_clip.tiff"
 
     epsg = gdal_get_projection(filename, out_format='epsg')
     if epsg == "4326":
@@ -263,7 +273,7 @@ def get_waterbody(filename, ths):
     if not sw_path.exists():
         sw_path.mkdir()
 
-    retrieve_vrt(west, south, east, north)
+    retrieve_vrt(west, east, south, north, cwd)
     gdal.BuildVRT(vrt_file, glob.glob(str(product_wpath)))
 
     # Clipping/Resampling Surface Water Map for AOI
@@ -282,7 +292,6 @@ def get_waterbody(filename, ths):
     # load resampled water map
     wmask = readData(wimage_file) > ths  # higher than 30% possibility (present water)
     return wmask
-
 
 def create_gcp_list(x, y, z, p=None, l=None, gcp_count=[2, 2]):
     """create_gcp_list(x,y,z,p=None, l=None, gcp_count=[2,2])
@@ -308,7 +317,6 @@ def create_gcp_list(x, y, z, p=None, l=None, gcp_count=[2, 2]):
             gcp = gdal.GCP(x[k], y[k], z[k], p[k], l[k])
             gcp_list.append(gcp)
     return gcp_list
-
 
 def writeTiff(ary, coord, filename='kgiAlos.tif', rescale=None, format=gdal.GDT_Float64, lon=None, lat=None,
               nodata=None, grid=False, cog=False, srs_proj4='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',
