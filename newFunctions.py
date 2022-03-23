@@ -9,24 +9,22 @@ from scipy import stats
 import util
 
 
-def check_coordinate_system(path):
-    info = gdal.Info(str(path), options=['-json'])
+def check_coordinate_system(info):
     info = info['coordinateSystem']['wkt']
     return info.split('ID')[-1].split(',')[1].replace(']', '')
 
 
-def reproject_tifs(epsg_we, epsg_hand, tiff_dir, filename, reprojected_flood_mask):
-    if epsg_we != epsg_hand:
-        gdal.Warp(reprojected_flood_mask, f'{tiff_dir}/{filename}', outputBoundsSRS=epsg_hand,
+def reproject_tifs(epsg1, epsg2, tiff_dir, filename1, reprojected):
+    if epsg1 != epsg2:
+        gdal.Warp(reprojected, filename1, outputBoundsSRS=epsg2,
                   resampleAlg='cubicspline', format="GTiff")
     else:
-        if reprojected_flood_mask.exists():
-            reprojected_flood_mask.unlink()
-        symlink(tiff_dir / filename, reprojected_flood_mask)
+        if reprojected.exists():
+            reprojected.unlink()
+        symlink(tiff_dir / filename1, reprojected)
 
 
 def initial_mask_generation(change_map, known_water_mask, water_classes=[0, 1, 2, 3, 4, 5]):
-    # Initial mask layer generation
     for c in water_classes:  # This allows more than a single water_class to be included in flood mask
         change_map[change_map == c] = 1
 
@@ -45,10 +43,6 @@ def logstat(data, func=np.nanstd):
     ld[np.isinf(ld)] = np.nan
     st = func(ld)
     return np.exp(st)
-
-
-def calc_water_height(m, s, water_level_sigma=3):
-    return m + water_level_sigma * s
 
 
 def estimate_flood_depth(hand_array, flood_mask, estimator='nmad', water_level_sigma=3, iterative_bounds=[0, 15]):
@@ -71,20 +65,19 @@ def estimate_flood_depth(hand_array, flood_mask, estimator='nmad', water_level_s
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', r'Mean of empty slice')
-            if estimator.lower() == "numpy":  # BROKE
-                water_height = calc_water_height(np.nanmean(hand_clip[flood_mask_labels_clip == l]),
-                                                 np.nanstd(hand_clip[flood_mask_labels_clip == l]),
-                                                 water_level_sigma=water_level_sigma)
+            if estimator.lower() == "numpy":
+                m = np.nanmean(hand_clip[flood_mask_labels_clip == l])
+                s = np.nanstd(hand_clip[flood_mask_labels_clip == l])
+                water_height = m + water_level_sigma * s
             elif estimator.lower() == "nmad":
-                water_height = calc_water_height(np.nanmean(hand_clip[flood_mask_labels_clip == l]),
-                                                 stats.median_abs_deviation(hand_clip[flood_mask_labels_clip == l],
-                                                                            scale='normal',
-                                                                            nan_policy='omit'),
-                                                 water_level_sigma=water_level_sigma)
+                m = np.nanmean(hand_clip[flood_mask_labels_clip == l])
+                s = stats.median_abs_deviation(hand_clip[flood_mask_labels_clip == l], scale='normal',
+                                               nan_policy='omit')
+                water_height = m + water_level_sigma * s
             elif estimator.lower() == "logstat":
-                water_height = calc_water_height(logstat(hand_clip[flood_mask_labels_clip == l], func=np.nanmean),
-                                                 util.logstat(hand_clip[flood_mask_labels_clip == l]),
-                                                 water_level_sigma=water_level_sigma)
+                m = logstat(hand_clip[flood_mask_labels_clip == l], func=np.nanmean)
+                s = logstat(hand_clip[flood_mask_labels_clip == l])
+                water_height = m + water_level_sigma * s
             elif estimator.lower() == "iterative":
                 water_height = util.iterative(hand_clip, flood_mask_labels_clip == l, water_levels=iterative_bounds)
             else:

@@ -14,6 +14,7 @@ from scipy import stats
 import util
 import newFunctions as nf
 from asf_tools.hand.prepare import prepare_hand_for_raster
+from asf_tools.composite import write_cog
 
 """Creates a flood depth map from a water extent map. 
 
@@ -38,66 +39,69 @@ distributions.
 
 """
 
-
-
+log = logging.getLogger(__name__)
 
 ######################################################
-# MESSILY SET UP INPUTS (WILL USE ARGPARSE)
+# MANUALLY SET UP ARGS/PATHS
 # DEFINE PARAMETERS
-water_classes = [1, 2, 3, 4, 5]  # 1 has to be a water class, 0 is no water Others are optional.
-pattern = "*_water_mask_combined.tiff"  # "filter_*_amp_Classified.tif"
-show_plots = True  # turn this off for debugging with IPDB
+water_classes = [0, 1, 2, 3, 4, 5]  # 1 has to be a water class, 0 is no water Others are optional.
 water_level_sigma = 3  # use 3*std to estimate max. water height (water level) for each object. Used for numpy, nmad,logstat
 estimator = "nmad"  # iterative, numpy, nmad or logstat
 iterative_bounds = [0, 15]  # only used for iterative
-output_prefix = ''  # Output file is created in the same folder as flood extent. A prefix can be added to the filename.
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
 tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
-tiff_path = tiff_dir + 'flooddaysBG.tif'
-#hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
-hand_dem = ''
+tiff_path = tiff_dir + 'flooddays.tiff'
+hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
+
 filename = Path(tiff_path).name
 filenoext = Path(tiff_path).stem  # given vrt we want to force geotif output with tif extension
+outfile = tiff_dir + 'NEWHAND_FloodDepth_' + estimator + filenoext + '.tif'
+
 tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}.tif"
 #############################################################
 # check coordinate systems
-epsg_we = nf.check_coordinate_system(tiff_path)
+info_we = gdal.Info(str(tiff_path), options=['-json'])
+info_hand = gdal.Info(str(hand_dem), options=['-json'])
 
-if hand_dem is None:
-    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
-    log.info(f'Extracting HAND data to: {hand_dem}')
-    prepare_hand_for_raster(hand_dem, vh_raster)
+epsg_we = nf.check_coordinate_system(info_we)
+epsg_hand = nf.check_coordinate_system(info_hand)
+print(f"Water extent map EPSG: {epsg_we}")
+print(f"HAND EPSG: {epsg_hand}")
 
-epsg_hand = nf.check_coordinate_system(hand_dem)
-
-# Reproject
+# Reproject Flood Mask
 nf.reproject_tifs(epsg_we, epsg_hand, tiff_dir, filename, reprojected_flood_mask)
 
-# Get Size of reprojected flood mask
-pixels, lines = util.get_size(str(reprojected_flood_mask))
-
-# checking extent of the map
-# info = (gdal.Info(str(reprojected_flood_mask), options = ['-json']))
-rfm_wesn = util.get_wesn(str(reprojected_flood_mask))
+#Info for reprojected TIF
+info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
+epsg = nf.check_coordinate_system(info)
+gT = info['geoTransform']
+width, height = info['size']
+rfm_wesn = util.get_wesn(info)
 
 # Clip HAND to the same size as the reprojected_flood_mask
+print(f'Clipping HAND to be {width} by {height} pixels.')
 hand_dem_bb = util.bounding_box(hand_dem)
-gdal.Warp(str(tiff_dir) + '/clip_' + filename, hand_dem, outputBounds=rfm_wesn, width=pixels, height=lines,
+gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=rfm_wesn, width=width, height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
-hand_array = util.readData(f"{tiff_dir}/clip_{filename}")
+hand_array = util.readData(f"{tiff_dir}/clip_HAND.tif")
 
 # Get known Water Mask
+print(f"RFM EPSG: {epsg}")
+print('Fetching perennial flood data.')
 known_water_mask = util.get_waterbody(str(reprojected_flood_mask), known_water_threshold)
 
 # load and display change detection product from Hyp3
 hyp3_map = gdal.Open(str(reprojected_flood_mask))
 change_map = hyp3_map.ReadAsArray()
 
-flood_mask = nf.initial_mask_generation(change_map, known_water_mask, water_classes=water_classes)
+flood_mask = nf.initial_mask_generation(change_map, known_water_mask,
+                                        water_classes=water_classes)
 
 flood_depth = nf.estimate_flood_depth(hand_array, flood_mask, estimator=estimator,
                                       water_level_sigma=water_level_sigma,
                                       iterative_bounds=iterative_bounds)
+
+util.writeTiff(flood_depth, gT, outfile, srs_proj4=epsg_we, nodata=0, options = ["TILED=YES","COMPRESS=LZW","INTERLEAVE=BAND","BIGTIFF=YES"])
