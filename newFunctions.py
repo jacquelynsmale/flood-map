@@ -1,13 +1,12 @@
+import numpy as np
+import util
 import warnings
 from os import symlink
-
-import numpy as np
 from osgeo import gdal
+from osgeo import osr
+from pathlib import Path
 from scipy import ndimage
 from scipy import stats
-from osgeo import osr
-import util
-from pathlib import Path
 
 
 def check_coordinate_system(info):

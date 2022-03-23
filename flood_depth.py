@@ -1,21 +1,19 @@
 import logging
-import os
-import warnings
-from os import symlink
-from pathlib import Path
-
+import matplotlib.pyplot as plt
+import newFunctions as nf
 import numpy as np
+import os
 import osgeo
 import pylab as pl
+import util
+import warnings
+from asf_tools.composite import write_cog
+from asf_tools.hand.prepare import prepare_hand_for_raster
+from os import symlink
 from osgeo import gdal
+from pathlib import Path
 from scipy import ndimage
 from scipy import stats
-
-import util
-import newFunctions as nf
-from asf_tools.hand.prepare import prepare_hand_for_raster
-from asf_tools.composite import write_cog
-import matplotlib.pyplot as plt
 
 """Creates a flood depth map from a water extent map. 
 
