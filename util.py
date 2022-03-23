@@ -146,46 +146,16 @@ def bounding_box(filename, t_srs=None):
             pts_tsrs.append(transform_point(p[0], p[1], 0, s_srs=s_srs, t_srs=t_srs))
     return tuple(pts_tsrs)
 
-
-<<<<<<< HEAD
-def get_wesn(filename, t_srs=None):
-    bb = bounding_box(filename, t_srs=t_srs)
-    w = np.inf
-    e = -np.inf
-    n = -np.inf
-    s = np.inf
-    for p in bb:
-        if p[0] < w:
-            w = p[0]
-        if p[0] > e:
-            e = p[0]
-        if p[1] < s:
-            s = p[1]
-        if p[1] > n:
-            n = p[1]
-    return [w, e, s, n]
-
-
-def retrieve_vrt(west, east, south, north):
-    cwd = Path.cwd()
-=======
 def get_wesn(info):
     west, south = info['cornerCoordinates']['lowerLeft']
     east, north = info['cornerCoordinates']['upperRight']
     return west, south, east, north
 
-<<<<<<< HEAD
-def retrieve_vrt(west, east, south, north, cwd):
->>>>>>> 157d240 (Mismatched raster sizes)
-    lon = int(abs(np.floor(west/10) * 10))
-    lat = int(abs(np.ceil(north/10) * 10))
-=======
 def retrieve_vrt(west, south, east, north, cwd):
     lon = np.floor(west / 10)
     lon = int(abs(lon * 10))
     lat = np.ceil(north / 10)
     lat = int(abs(lat * 10))
->>>>>>> 0ff610a (Clean up get_waterbody())
 
     if (west < 0 and north < 0):
         urllib.request.urlretrieve(

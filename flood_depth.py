@@ -49,24 +49,12 @@ estimator = "nmad"  # iterative, numpy, nmad or logstat
 iterative_bounds = [0, 15]  # only used for iterative
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
-<<<<<<< HEAD
 tiff_path = tiff_dir + 'flooddaysBG.tif'
-=======
-=======
-tiff_dir = '/home/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
->>>>>>> e51fc07 (Re-ordered coordinates. Added a plot for a sanity check')
-tiff_path = tiff_dir + 'flooddays.tiff'
->>>>>>> 157d240 (Mismatched raster sizes)
-=======
-tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
 filenoext = 'flooddaysBG'
 filename = filenoext + '.tif'
 
 tiff_path = tiff_dir + filename
->>>>>>> 0ff610a (Clean up get_waterbody())
 hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
 
 outfile = tiff_dir + 'HAND_FloodDepth_' + estimator + filenoext + '.tif'
@@ -75,12 +63,6 @@ tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}"
 #############################################################
 # check coordinate systems
-<<<<<<< HEAD
-epsg_we = nf.check_coordinate_system(tiff_path)
-epsg_hand = nf.check_coordinate_system(hand_dem)
-
-# Reproject
-=======
 info_we = gdal.Info(str(tiff_path), options=['-json'])
 info_hand = gdal.Info(str(hand_dem), options=['-json'])
 
@@ -90,12 +72,7 @@ print(f"Water extent map EPSG: {epsg_we}")
 print(f"HAND EPSG: {epsg_hand}")
 
 # Reproject Flood Mask
-<<<<<<< HEAD
->>>>>>> 157d240 (Mismatched raster sizes)
-nf.reproject_tifs(epsg_we, epsg_hand, tiff_dir, filename, reprojected_flood_mask)
-=======
 nf.reproject_flood_mask(epsg_we, epsg_hand, filename, reprojected_flood_mask, tiff_dir)
->>>>>>> 0ff610a (Clean up get_waterbody())
 
 #Info for reprojected TIF
 info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
