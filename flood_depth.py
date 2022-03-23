@@ -50,6 +50,7 @@ iterative_bounds = [0, 15]  # only used for iterative
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
 tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
+tiff_path = tiff_dir + 'flooddaysBG.tif'
 filenoext = 'flooddaysBG'
 filename = filenoext + '.tif'
 

@@ -146,7 +146,6 @@ def bounding_box(filename, t_srs=None):
             pts_tsrs.append(transform_point(p[0], p[1], 0, s_srs=s_srs, t_srs=t_srs))
     return tuple(pts_tsrs)
 
-
 def get_wesn(info):
     west, south = info['cornerCoordinates']['lowerLeft']
     east, north = info['cornerCoordinates']['upperRight']
