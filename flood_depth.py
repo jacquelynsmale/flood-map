@@ -71,10 +71,10 @@ epsg_hand = nf.check_coordinate_system(info_hand)
 print(f"Water extent map EPSG: {epsg_we}")
 print(f"HAND EPSG: {epsg_hand}")
 
-# Reproject Flood Mask
+# Reproject Flood Mask to match HAND EPSG
 nf.reproject_flood_mask(epsg_we, epsg_hand, filename, reprojected_flood_mask, tiff_dir)
 
-#Info for reprojected TIF
+#Save Info for reprojected TIF
 info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
 epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
@@ -86,9 +86,10 @@ print(f'Clipping HAND to {width} by {height} pixels.')
 gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south, east, north], width=width, height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
+#Read in HAND array
 hand_array = util.readData(f"{tiff_dir}/clip_HAND.tif")
 
-# Get known Water Mask
+# Get perennial flood data 
 print(f"RFM EPSG: {epsg}")
 print('Fetching perennial flood data.')
 known_water_mask = nf.get_waterbody(info, ths=known_water_threshold)
@@ -96,7 +97,7 @@ plt.matshow(known_water_mask)
 
 plt.show()
 
-# load and display change detection product from Hyp3
+# load change detection product from Hyp3
 hyp3_map = gdal.Open(str(reprojected_flood_mask))
 change_map = hyp3_map.ReadAsArray()
 
