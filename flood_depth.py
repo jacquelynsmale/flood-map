@@ -117,7 +117,13 @@ pl.clim([clim_min, clim_max])
 pl.title('Estimated Flood Depth')
 pl.show()
 
+write_cog(outfile, flood_depth, transform=gT, epsg_code=int(epsg), dtype=gdal.GDT_Byte, nodata_value=False)
+
+#Original script saves
+#Flood depth as HAND_WaterDepth...
+#Flood Mask as Flood_mask...
 
 flood_mask[known_water_mask] = 0
 flood_depth[np.bitwise_not(flood_mask)] = 0
-util.writeTiff(flood_depth, gT, outfile, srs_proj4=epsg_we, nodata=0, options = ["TILED=YES","COMPRESS=LZW","INTERLEAVE=BAND","BIGTIFF=YES"])
+
+#Flood Depth again as HAND_FloodDepth
