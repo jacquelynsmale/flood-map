@@ -54,13 +54,18 @@ filenoext = 'flooddaysBG'
 filename = filenoext + '.tif'
 
 tiff_path = tiff_dir + filename
-hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
+hand_dem = None #tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
 
 outfile = tiff_dir + 'HAND_FloodDepth_' + estimator + filenoext + '.tif'
 
 tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}"
 #############################################################
+if hand_dem is None:
+    hand_dem = str(filename).replace('.tif', '_HAND.tif')
+    log.info(f'Extracting HAND data to: {hand_dem}')
+    prepare_hand_for_raster(hand_dem, tiff_path)
+
 # check coordinate systems
 info_we = gdal.Info(str(tiff_path), options=['-json'])
 info_hand = gdal.Info(str(hand_dem), options=['-json'])
@@ -79,6 +84,7 @@ epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
 width, height = info['size']
 west, south, east, north = nf.get_wesn(info)
+
 
 # Clip HAND to the same size as the reprojected_flood_mask
 print(f'Clipping HAND to {width} by {height} pixels.')
