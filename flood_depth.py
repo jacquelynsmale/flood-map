@@ -62,7 +62,7 @@ tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}"
 #############################################################
 if hand_dem is None:
-    hand_dem = str(filename).replace('.tif', '_HAND.tif')
+    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
     log.info(f'Extracting HAND data to: {hand_dem}')
     prepare_hand_for_raster(hand_dem, tiff_path)
 

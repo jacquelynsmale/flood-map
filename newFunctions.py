@@ -23,9 +23,6 @@ def get_wesn(info):
 
 
 def readData(filename, ndtype=np.float64):
-    '''
-    z=readData('/path/to/file')
-    '''
     if os.path.isfile(filename):
         return LoadFile(filename).astype(ndtype);
     else:
@@ -54,6 +51,7 @@ def initial_mask_generation(change_map, known_water_mask, water_classes=[0, 1, 2
 
 def get_waterbody(input_info, ths=30):
     sw_path = Path.cwd() / f"S_WATER"
+    
     epsg_code = 'EPSG:' + check_coordinate_system(input_info)
 
     west, south = input_info['cornerCoordinates']['lowerLeft']
