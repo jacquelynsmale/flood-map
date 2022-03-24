@@ -48,69 +48,100 @@ estimator = "nmad"  # iterative, numpy, nmad or logstat
 iterative_bounds = [0, 15]  # only used for iterative
 known_water_threshold = 30  # Threshold for extracting the known water area in percent.
 
-tiff_dir = '/Users/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/'
-tiff_path = tiff_dir + 'flooddaysBG.tif'
-filenoext = 'flooddaysBG'
-filename = filenoext + '.tif'
+water_extent = '/home/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/flooddaysBG.tif'
+hand_raster = None
+outfile = '/home/jrsmale/projects/floodMap/BangledeshFloodMapping/tifs/BG_FloodDepth.tif'
 
-tiff_path = tiff_dir + filename
-hand_dem = None #tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
-
-outfile = tiff_dir + 'HAND_FloodDepth_' + estimator + filenoext + '.tif'
-
-tiff_dir = Path(tiff_dir)
-reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}"
 #############################################################
-if hand_dem is None:
-    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
-    log.info(f'Extracting HAND data to: {hand_dem}')
-    prepare_hand_for_raster(hand_dem, tiff_path)
+if hand_raster is None:
+    hand_raster = str(water_extent).replace('.tif', '_HAND.tif')
+    log.info(f'Extracting HAND data to: {hand_raster}')
+    prepare_hand_for_raster(hand_raster, water_extent)
 
 # check coordinate systems
-info_we = gdal.Info(str(tiff_path), options=['-json'])
-info_hand = gdal.Info(str(hand_dem), options=['-json'])
+info_we = gdal.Info(str(water_extent), options=['-json'])
+info_hand = gdal.Info(str(hand_raster), options=['-json'])
 
 epsg_we = nf.check_coordinate_system(info_we)
 epsg_hand = nf.check_coordinate_system(info_hand)
-print(f"Water extent map EPSG: {epsg_we}")
-print(f"HAND EPSG: {epsg_hand}")
+log.info(f"Water extent map EPSG: {epsg_we}")
+log.info(f"HAND EPSG: {epsg_hand}")
 
-# Reproject Flood Mask to match HAND EPSG
-nf.reproject_flood_mask(epsg_we, epsg_hand, filename, reprojected_flood_mask, tiff_dir)
+log.info('Project HAND and water extent map to same EPSG.')
+reprojected_flood_mask = str(water_extent).replace('.tif', '_reprojected.tif')
+nf.reproject_flood_mask(epsg_we, epsg_hand, water_extent, reprojected_flood_mask,
+                        Path(water_extent).parent)
 
-#Save Info for reprojected TIF
+# Save Info for reprojected TIF
 info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
 epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
 width, height = info['size']
 west, south, east, north = nf.get_wesn(info)
 
-
 # Clip HAND to the same size as the reprojected_flood_mask
-print(f'Clipping HAND to {width} by {height} pixels.')
-gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south, east, north], width=width, height=height,
+log.info(f'Clipping HAND to {width} by {height} pixels.')
+gdal.Warp(str(hand_raster).replace('.tif', '_CLIP.tif'), hand_raster, outputBounds=[west, south, east, north],
+          width=width,
+          height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
-#Read in HAND array
-hand_array = nf.readData(f"{tiff_dir}/clip_HAND.tif")
-
-# Get perennial flood data 
-print('Fetching perennial flood data.')
+# Read in HAND array
+hand_array = nf.readData(str(hand_raster).replace('.tif', '_CLIP.tif'))
+log.info('Fetching perennial flood data.')
 known_water_mask = nf.get_waterbody(info, ths=known_water_threshold)
-plt.matshow(known_water_mask)
-
-plt.show()
 
 # load change detection product from Hyp3
-hyp3_map = gdal.Open(str(reprojected_flood_mask))
+hyp3_map = gdal.Open(reprojected_flood_mask)
 change_map = hyp3_map.ReadAsArray()
 
 flood_mask = nf.initial_mask_generation(change_map, known_water_mask,
                                         water_classes=water_classes)
-plt.matshow(flood_mask)
-flood_depth = nf.estimate_flood_depth(hand_array, flood_mask, estimator=estimator,
-                                      water_level_sigma=water_level_sigma,
-                                      iterative_bounds=iterative_bounds)
+
+# Estimate flood depth (own function in NewFunctions.py)
+flood_mask_labels, num_labels = ndimage.label(flood_mask)
+object_slices = ndimage.find_objects(flood_mask_labels)
+log.info(f'Detected {num_labels} water bodies...')
+
+flood_depth = np.zeros(flood_mask.shape)
+
+for l in range(1, num_labels):  # Skip first, largest label.
+    slices = object_slices[l - 1]  # osl label=1 is in object_slices[0]
+    min0 = slices[0].start
+    max0 = slices[0].stop
+    min1 = slices[1].start
+    max1 = slices[1].stop
+    flood_mask_labels_clip = flood_mask_labels[min0: max0, min1: max1]
+
+    flood_mask_clip = flood_mask[min0: max0, min1: max1].copy()
+    flood_mask_clip[flood_mask_labels_clip != l] = 0  # Maskout other flooded areas (labels)
+    hand_clip = hand_array[min0: max0, min1: max1]
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'Mean of empty slice')
+        if estimator.lower() == "numpy":
+            m = np.nanmean(hand_clip[flood_mask_labels_clip == l])
+            s = np.nanstd(hand_clip[flood_mask_labels_clip == l])
+            water_height = m + water_level_sigma * s
+        elif estimator.lower() == "nmad":
+            m = np.nanmean(hand_clip[flood_mask_labels_clip == l])
+            s = stats.median_abs_deviation(hand_clip[flood_mask_labels_clip == l], scale='normal',
+                                           nan_policy='omit')
+            water_height = m + water_level_sigma * s
+        elif estimator.lower() == "logstat":
+            m = nf.logstat(hand_clip[flood_mask_labels_clip == l], func=np.nanmean)
+            s = nf.logstat(hand_clip[flood_mask_labels_clip == l])
+            water_height = m + water_level_sigma * s
+        elif estimator.lower() == "iterative":
+            water_height = nf.iterative(hand_clip, flood_mask_labels_clip == l, water_levels=iterative_bounds)
+        else:
+            log.info("Unknown estimator selected for water height calculation.")
+            raise ValueError
+
+    flood_depth_clip = flood_depth[min0:max0, min1:max1]
+    flood_depth_clip[flood_mask_labels_clip == l] = water_height - hand_clip[flood_mask_labels_clip == l]
+
+flood_depth[flood_depth < 0] = 0
 
 m = np.nanmean(flood_depth)
 s = np.nanstd(flood_depth)

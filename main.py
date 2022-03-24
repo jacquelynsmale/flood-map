@@ -1,22 +1,29 @@
 import logging
+import argparse
 import os
 import warnings
 from os import symlink
 from pathlib import Path
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pylab as pl
 from osgeo import gdal
 from scipy import ndimage
 from scipy import stats
+from asf_tools.composite import write_cog
+from asf_tools.hand.prepare import prepare_hand_for_raster
 
 import newFunctions as nf
 
 log = logging.getLogger(__name__)
 
 
-def estimate_flood_depth(out_raster, water_extent, hand_raster, estimator='nmad', water_level_sigma=3,
-                         known_water_threshold=30, water_classes=[1, 2, 3, 4, 5], iterative_bounds=[0, 15]):
+def estimate_flood_depth(out_raster: Union[str, Path], water_extent: Union[str,Path],
+                         hand_raster: Optional[Union[str, Path]] = None,
+                         estimator: str= 'nmad', water_level_sigma: float =3,
+                         known_water_threshold: float = 30,
+                         water_classes: Tuple = [1, 2, 3, 4, 5], iterative_bounds: Tuple[int, int] = (0, 15)):
     if hand_raster is None:
         hand_raster = str(water_extent).replace('.tif', '_HAND.tif')
         log.info(f'Extracting HAND data to: {hand_raster}')
@@ -33,7 +40,7 @@ def estimate_flood_depth(out_raster, water_extent, hand_raster, estimator='nmad'
 
     log.info('Project HAND and water extent map to same EPSG.')
     reprojected_flood_mask = str(water_extent).replace('.tif', '_reprojected.tif')
-    nf.reproject_flood_mask(epsg_we, epsg_hand, filename, reprojected_flood_mask,
+    nf.reproject_flood_mask(epsg_we, epsg_hand, water_extent, reprojected_flood_mask,
                             Path(water_extent).parent)
 
     # Save Info for reprojected TIF
@@ -45,12 +52,12 @@ def estimate_flood_depth(out_raster, water_extent, hand_raster, estimator='nmad'
 
     # Clip HAND to the same size as the reprojected_flood_mask
     log.info(f'Clipping HAND to {width} by {height} pixels.')
-    gdal.Warp(str(cwd) + '/clip_HAND.tif', hand_raster, outputBounds=[west, south, east, north], width=width,
+    gdal.Warp(str(hand_raster).replace('.tif', '_CLIP.tif'), hand_raster, outputBounds=[west, south, east, north], width=width,
               height=height,
               resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
     # Read in HAND array
-    hand_array = nf.readData(f"{cwd}/clip_HAND.tif")
+    hand_array = nf.readData(str(hand_raster).replace('.tif', '_CLIP.tif'))
     log.info('Fetching perennial flood data.')
     known_water_mask = nf.get_waterbody(info, ths=known_water_threshold)
 
@@ -92,11 +99,11 @@ def estimate_flood_depth(out_raster, water_extent, hand_raster, estimator='nmad'
                                                nan_policy='omit')
                 water_height = m + water_level_sigma * s
             elif estimator.lower() == "logstat":
-                m = logstat(hand_clip[flood_mask_labels_clip == l], func=np.nanmean)
-                s = logstat(hand_clip[flood_mask_labels_clip == l])
+                m = nf.logstat(hand_clip[flood_mask_labels_clip == l], func=np.nanmean)
+                s = nf.logstat(hand_clip[flood_mask_labels_clip == l])
                 water_height = m + water_level_sigma * s
             elif estimator.lower() == "iterative":
-                water_height = iterative(hand_clip, flood_mask_labels_clip == l, water_levels=iterative_bounds)
+                water_height = nf.iterative(hand_clip, flood_mask_labels_clip == l, water_levels=iterative_bounds)
             else:
                 log.info("Unknown estimator selected for water height calculation.")
                 raise ValueError
@@ -148,7 +155,7 @@ def main():
     estimate_flood_depth(args.out-raster, args.water-extent, args.hand-raster, args.estimator, args.water-level-sigma,
                          args.known_water-threshold, args.water-classes, args.iterative-bounds, args.out-raster)
 
-    info.log(f"Flood Map written to {args.out-raster}.")
+    log.info(f"Flood Map written to {args.out-raster}.")
 
 
 # Press the green button in the gutter to run the script.git 

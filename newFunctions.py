@@ -35,8 +35,8 @@ def reproject_flood_mask(epsg, epsg_hand, filename, reprojected_filename, tiff_d
                   resampleAlg='cubicspline', format="GTiff")
     else:
         print('HAND and Flood Mask have the same projection. ')
-        if reprojected_filename.exists():
-            reprojected_filename.unlink()
+        if Path(reprojected_filename).exists():
+            Path(reprojected_filename).unlink()
         symlink(tiff_dir / filename, reprojected_filename)
 
 
