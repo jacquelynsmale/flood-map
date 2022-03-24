@@ -5,7 +5,6 @@ import numpy as np
 import os
 import osgeo
 import pylab as pl
-import util
 import warnings
 from asf_tools.composite import write_cog
 from asf_tools.hand.prepare import prepare_hand_for_raster
@@ -79,7 +78,7 @@ info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
 epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
 width, height = info['size']
-west, south, east, north = util.get_wesn(info)
+west, south, east, north = nf.get_wesn(info)
 
 # Clip HAND to the same size as the reprojected_flood_mask
 print(f'Clipping HAND to {width} by {height} pixels.')
@@ -87,10 +86,9 @@ gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
 #Read in HAND array
-hand_array = util.readData(f"{tiff_dir}/clip_HAND.tif")
+hand_array = nf.readData(f"{tiff_dir}/clip_HAND.tif")
 
 # Get perennial flood data 
-print(f"RFM EPSG: {epsg}")
 print('Fetching perennial flood data.')
 known_water_mask = nf.get_waterbody(info, ths=known_water_threshold)
 plt.matshow(known_water_mask)
