@@ -5,7 +5,6 @@ import numpy as np
 import os
 import osgeo
 import pylab as pl
-import util
 import warnings
 from asf_tools.composite import write_cog
 from asf_tools.hand.prepare import prepare_hand_for_raster
@@ -55,13 +54,18 @@ filenoext = 'flooddaysBG'
 filename = filenoext + '.tif'
 
 tiff_path = tiff_dir + filename
-hand_dem = tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
+hand_dem = None #tiff_dir + 'Bangladesh_Training_DEM_hand.tif'
 
 outfile = tiff_dir + 'HAND_FloodDepth_' + estimator + filenoext + '.tif'
 
 tiff_dir = Path(tiff_dir)
 reprojected_flood_mask = tiff_dir / f"reproj_{filenoext}"
 #############################################################
+if hand_dem is None:
+    hand_dem = str(tiff_path).replace('.tif', '_HAND.tif')
+    log.info(f'Extracting HAND data to: {hand_dem}')
+    prepare_hand_for_raster(hand_dem, tiff_path)
+
 # check coordinate systems
 info_we = gdal.Info(str(tiff_path), options=['-json'])
 info_hand = gdal.Info(str(hand_dem), options=['-json'])
@@ -71,32 +75,33 @@ epsg_hand = nf.check_coordinate_system(info_hand)
 print(f"Water extent map EPSG: {epsg_we}")
 print(f"HAND EPSG: {epsg_hand}")
 
-# Reproject Flood Mask
+# Reproject Flood Mask to match HAND EPSG
 nf.reproject_flood_mask(epsg_we, epsg_hand, filename, reprojected_flood_mask, tiff_dir)
 
-#Info for reprojected TIF
+#Save Info for reprojected TIF
 info = gdal.Info(str(reprojected_flood_mask), options=['-json'])
 epsg = nf.check_coordinate_system(info)
 gT = info['geoTransform']
 width, height = info['size']
-west, south, east, north = util.get_wesn(info)
+west, south, east, north = nf.get_wesn(info)
+
 
 # Clip HAND to the same size as the reprojected_flood_mask
 print(f'Clipping HAND to {width} by {height} pixels.')
 gdal.Warp(str(tiff_dir) + '/clip_HAND.tif', hand_dem, outputBounds=[west, south, east, north], width=width, height=height,
           resampleAlg='lanczos', format="GTiff")  # Missing -overwrite
 
-hand_array = util.readData(f"{tiff_dir}/clip_HAND.tif")
+#Read in HAND array
+hand_array = nf.readData(f"{tiff_dir}/clip_HAND.tif")
 
-# Get known Water Mask
-print(f"RFM EPSG: {epsg}")
+# Get perennial flood data 
 print('Fetching perennial flood data.')
 known_water_mask = nf.get_waterbody(info, ths=known_water_threshold)
 plt.matshow(known_water_mask)
 
 plt.show()
 
-# load and display change detection product from Hyp3
+# load change detection product from Hyp3
 hyp3_map = gdal.Open(str(reprojected_flood_mask))
 change_map = hyp3_map.ReadAsArray()
 
@@ -117,7 +122,13 @@ pl.clim([clim_min, clim_max])
 pl.title('Estimated Flood Depth')
 pl.show()
 
+write_cog(outfile, flood_depth, transform=gT, epsg_code=int(epsg), dtype=gdal.GDT_Byte, nodata_value=False)
+
+#Original script saves
+#Flood depth as HAND_WaterDepth...
+#Flood Mask as Flood_mask...
 
 flood_mask[known_water_mask] = 0
 flood_depth[np.bitwise_not(flood_mask)] = 0
-util.writeTiff(flood_depth, gT, outfile, srs_proj4=epsg_we, nodata=0, options = ["TILED=YES","COMPRESS=LZW","INTERLEAVE=BAND","BIGTIFF=YES"])
+
+#Flood Depth again as HAND_FloodDepth
